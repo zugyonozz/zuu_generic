@@ -9,6 +9,7 @@ include/
 ├── typelist.hpp   # Compile-time type list utilities
 ├── bytes.hpp      # Fixed-size byte array dengan bitwise ops  
 ├── composer.hpp   # Type punning union
+├── endian.hpp     # Endian detection & conversion
 └── generic.hpp    # Main variant container (depends on above)
 ```
 
@@ -120,6 +121,23 @@ vs std::variant: typically 16+ bytes
 - `max_align` - Largest alignment
 - `storage_size()` - Actual storage bytes
 
+### Endian Functions (`endian.hpp`)
+
+#### Constants
+- `is_little_endian` - `bool`, compile-time
+- `is_big_endian` - `bool`, compile-time
+- `native_endian` - `endian_t`, native byte order
+
+#### Free Functions
+- `byte_swap(T)` → `T` - Reverse bytes
+- `to_little_endian(T)` → `T` - Native to LE
+- `to_big_endian(T)` → `T` - Native to BE
+- `from_little_endian(T)` → `T` - LE to native
+- `from_big_endian(T)` → `T` - BE to native
+- `to_endian(T, endian_t)` → `T` - Runtime conversion
+- `hton(T)` → `T` - Host to network order
+- `ntoh(T)` → `T` - Network to host order
+
 ### `composer<T>`
 
 Type punning utility untuk konversi ke raw bytes.
@@ -139,6 +157,55 @@ bytes<4> b(0x00FF00FFu);
 auto c = a ^ b;           // XOR
 c.set_bit(0);            // Set LSB
 auto count = c.popcount(); // Count 1s
+```
+
+### `endian.hpp`
+
+Endian detection dan conversion utilities.
+
+```cpp
+// Compile-time detection
+static_assert(is_little_endian);  // atau is_big_endian
+
+// Integer conversion
+uint32_t val = 0x12345678;
+auto le = to_little_endian(val);   // No-op pada LE system
+auto be = to_big_endian(val);      // Swap bytes pada LE system
+auto native = from_big_endian(be); // Convert back
+
+// Network byte order
+uint16_t port = 8080;
+auto net_port = hton(port);  // Host to network
+auto host_port = ntoh(net_port);  // Network to host
+
+// Byte swap
+auto swapped = byte_swap(val);  // Reverse all bytes
+
+// Runtime selection
+auto result = to_endian(val, endian_t::big);
+```
+
+**composer endian methods:**
+```cpp
+composer<uint32_t> c(0x12345678);
+auto c_le = c.to_little_endian();   // Convert to LE
+auto c_be = c.to_big_endian();      // Convert to BE
+auto c_net = c.to_network();        // Same as BE
+c.swap_bytes();                     // In-place swap
+auto c_rev = c.reversed();          // Reverse raw bytes
+```
+
+**bytes endian methods:**
+```cpp
+bytes<4> b(0xAABBCCDD);
+auto b_le = b.to_little_endian();   // Convert to LE
+auto b_be = b.to_big_endian();      // Convert to BE
+auto b_net = b.to_network();        // Same as BE
+b.make_big_endian();                // In-place conversion
+
+// Integer with endian
+auto val = b.to_int<uint32_t>(endian_t::big);  // Parse as BE
+auto b2 = bytes<4>::from_big_endian_int(0x1234);  // Create BE bytes
 ```
 
 ## ⚠️ Limitations
